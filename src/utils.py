@@ -365,16 +365,16 @@ async def navigate_to_ravenwood(client: Client):
     match current_zone:
         # Handling for dorm room
         case "WizardCity/Interiors/WC_Housing_Dorm_Interior":
-            await client.goto(70.15016174316406, 9.419374465942383)
+            await client.send_key(Keycode.S, 2)
             while not await client.is_loading():
-                await client.send_key(Keycode.S, 0.1)
+                await client.send_key(Keycode.S, 2)
             await wait_for_zone_change(client, current_zone=current_zone)
             bartleby_navigation = False
 
         # Handling for arcanum apartment
         case "Housing_AR_Dormroom/Interior":
             while not await client.is_loading():
-                await client.send_key(Keycode.S, 0.1)
+                await client.send_key(Keycode.S, 1.5)
             await wait_for_zone_change(client, current_zone=current_zone)
             await asyncio.sleep(0.5)
             await client.teleport(XYZ(x=-19.1153507232666, y=-6312.8994140625, z=-2.00579833984375))
@@ -383,7 +383,7 @@ async def navigate_to_ravenwood(client: Client):
 
         # Any other house in the game
         case _:
-            await client.send_key(Keycode.S, 0.1)
+            await client.send_key(Keycode.S, 2)
             use_spiral_door = True
 
     # Navigate through spiral door if needed
@@ -396,7 +396,7 @@ async def navigate_to_ravenwood(client: Client):
     # Navigate through bartleby if needed
     if bartleby_navigation:
         await client.goto(-9.711, -2987.212)
-        await client.send_key(Keycode.W, 0.3)
+        await client.send_key(Keycode.W, 3)
 
         while True:
             try:
@@ -405,7 +405,7 @@ async def navigate_to_ravenwood(client: Client):
             # backup since the above method fails sometimes
             except LoadingScreenNotFound:
                 await client.teleport(XYZ(x=18.072603225708008, y=-3250.805419921875, z=244.01708984375))
-                await client.send_key(Keycode.W, 0.5)
+                await client.send_key(Keycode.W, 3)
 
 
 async def navigate_to_commons_from_ravenwood(client: Client):
@@ -449,23 +449,16 @@ async def buy_potions(client: Client, recall: bool = True, original_zone=None):
                 await asyncio.sleep(0.25)
 
                 await click_window_by_path(client, potion_buy_path, True)
-                await asyncio.sleep(0.25)
+                await asyncio.sleep(1.5)
 
                 while await is_visible_by_path(client, potion_shop_base_path):
                     await click_window_by_path(client, potion_exit_path, True)
                     await asyncio.sleep(0.125)
 
                 current_potion_count = await client.stats.potion_charge()
-                await asyncio.sleep(.5)
+                await asyncio.sleep(0.5)
 
-            if i == 0:
-                if await client.stats.potion_charge() >= 1.0:
-                    original_potion_count = await client.stats.potion_charge()
 
-                    while await client.stats.potion_charge() == original_potion_count:
-                        logger.debug(f'Client {client.title} - Using potion')
-                        await click_window_by_path(client, potion_usage_path, True)
-                        await asyncio.sleep(3.0)
 
     except:
         print(traceback.print_exc())
