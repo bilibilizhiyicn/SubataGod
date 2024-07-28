@@ -42,7 +42,6 @@ from wizwalker.extensions.wizsprinter.wiz_navigator import toZoneDisplayName, to
 from wizwalker.extensions.wizsprinter.sprinty_combat import SprintyCombat
 from src.config_combat import StrCombatConfigProvider, delegate_combat_configs
 from typing import List
-
 from src import deimosgui
 from src.deimosgui import GUIKeys
 from src.tokenizer import tokenize
@@ -198,8 +197,6 @@ def read_config(config_name : str):
 
 
 while True:
-	if not os.path.exists(f'{tool_name}-config.ini'):
-		download_file(f'https://raw.githubusercontent.com/{tool_author}/{repo_name}/{branch}/{tool_name}-config.ini', f'{tool_name}-config.ini')
 	time.sleep(0.1)
 
 	read_config(f'{tool_name}-config.ini')
@@ -208,15 +205,7 @@ while True:
 while True:
 	if hasattr(sys, '_MEIPASS'):
 		folder_path = os.path.join(sys._MEIPASS, 'wizwalker/extensions/wizsprinter/traversalData')
-		if not os.path.exists(folder_path):
-			os.makedirs(folder_path)
-		download_file('https://raw.githubusercontent.com/notfaj/wizsprinter/main/wizwalker/extensions/wizsprinter/traversalData/displayZones.txt', os.path.join(folder_path, 'displayZones.txt'))
-		download_file('https://raw.githubusercontent.com/notfaj/wizsprinter/main/wizwalker/extensions/wizsprinter/traversalData/gates_list.txt', os.path.join(folder_path, 'gates_list.txt'))
-		download_file('https://raw.githubusercontent.com/notfaj/wizsprinter/main/wizwalker/extensions/wizsprinter/traversalData/interactiveTeleporters.txt', os.path.join(folder_path, 'interactiveTeleporters.txt'))
-		download_file('https://raw.githubusercontent.com/notfaj/wizsprinter/main/wizwalker/extensions/wizsprinter/traversalData/objectLocations.txt', os.path.join(folder_path, 'objectLocations.txt'))
-		download_file('https://raw.githubusercontent.com/notfaj/wizsprinter/main/wizwalker/extensions/wizsprinter/traversalData/uniqueObjectLocations.txt', os.path.join(folder_path, 'uniqueObjectLocations.txt'))
-		download_file('https://raw.githubusercontent.com/notfaj/wizsprinter/main/wizwalker/extensions/wizsprinter/traversalData/zoneMap.txt', os.path.join(folder_path, 'zoneMap.txt'))
-	break
+		break
 
 
 speed_status = False
@@ -266,16 +255,6 @@ def generate_timestamp() -> str:
 
 
 def config_update():
-	config_url = f'https://raw.githubusercontent.com/{tool_author}/{repo_name}/{branch}/{tool_name}-config.ini'
-
-	if not os.path.exists(f'{tool_name}-config.ini'):
-		download_file(url=config_url, file_name=f'{tool_name}-config.ini')
-		time.sleep(0.1)
-
-	if not os.path.exists(f'README.txt'):
-		download_file(f'https://raw.githubusercontent.com/{tool_author}/{repo_name}/{branch}/README.txt', 'README.txt')
-
-	download_file(url=config_url, file_name=f'{tool_name}-Testconfig.ini', delete_previous=True, debug=False)
 	time.sleep(0.1)
 
 	comparison_parser = ConfigParser()
@@ -313,24 +292,13 @@ def config_update():
 
 
 def run_updater():
-	download_file(url=f"https://raw.githubusercontent.com/{tool_author}/{repo_name}/{branch}/{tool_name}Updater.exe", file_name=f'{tool_name}Updater.exe', delete_previous=True)
 	time.sleep(0.1)
-	subprocess.Popen(f'{tool_name}Updater.exe')
 	sys.exit()
 
 
 def get_latest_version() -> str:
 	update_server = None
 
-	try:
-		update_server = read_webpage(f"https://raw.githubusercontent.com/{tool_author}/{repo_name}/{branch}/LatestVersion.txt")
-	except:
-		time.sleep(0.1)
-
-	if len(update_server) >= 1:
-		return update_server[0]
-	else:
-		return None
 
 
 def is_version_greater(version: str, comparison_version: str) -> bool:
@@ -887,11 +855,11 @@ async def main():
 					if await is_visible_by_path(client, advance_dialog_path):
 						if await is_visible_by_path(client, decline_quest_path) and not side_quest_status:
 							await client.send_key(key=Keycode.ESC)
-							await asyncio.sleep(0.1)
+							await asyncio.sleep(0.3)
 							await client.send_key(key=Keycode.ESC)
 						else:
 							await client.send_key(key=Keycode.SPACEBAR)
-				await asyncio.sleep(0.1)
+				await asyncio.sleep(0.3)
 
 		await asyncio.gather(*[async_dialogue(p) for p in walker.clients])
 
@@ -1221,6 +1189,8 @@ async def main():
 			)
 			gui_thread.daemon = True
 			gui_thread.start()
+			
+			drop_logging_loop_task = asyncio.create_task(drop_logging_loop())
 
 			enemy_stats = []
 
@@ -1539,12 +1509,28 @@ async def main():
 									await asyncio.sleep(0)
 									await foreground_client.camera_elastic()
 
+							case deimosgui.GUICommandType.Match_Drop_List:
+								match_drop_list = com.data
+								if match_drop_list:
+									logger.debug(f'Logging These Drops Only: {match_drop_list}')
+								else:
+									logger.debug(f'Logging All Drops.')
+
+							case deimosgui.GUICommandType.Match_Drop_CheckBox:
+								match_drop_check = com.data
+								if match_drop_check == True:
+									drop_logging_loop_task.cancel()
+									await asyncio.sleep(0)
+									drop_logging_loop_task = asyncio.create_task(drop_logging_loop(match_drop_list))
+								else:
+									drop_logging_loop_task.cancel()
+									await asyncio.sleep(0)
+									drop_logging_loop_task = asyncio.create_task(drop_logging_loop(match_drop_list))
+
 							case deimosgui.GUICommandType.ExecuteBot:
 								command_data: str = com.data
-
 								async def run_bot():
 									logger.debug('Started Bot')
-
 									split_commands = command_data.split('\n')
 									web_command_strs = ['webpage', 'pull', 'embed']
 									new_commands = []
@@ -1745,28 +1731,11 @@ async def main():
 				"client_id": str(discsdk.app_id)
 			}
 		)
-		while True:
-			try:
-				banlistcontents = requests.get(f"https://raw.githubusercontent.com/{tool_author}/{tool_name.lower()}-bans/main/{tool_name}Bans.txt").content.decode()
-				banlist = set([x.split(" ")[0].strip() for x in banlistcontents.splitlines()])
-
-				handle = discsdk.connect()
-				discsdk.send(handle, shake)
-				resp = discsdk.recv(handle)
-				discsdk.close(handle)
-
-				user_id = resp["data"]["user"]["id"]
-				if user_id in banlist:
-					break
-			except:
-				pass
-
-			time.sleep(5 * 60)
 
 
-	async def drop_logging_loop():
-		# Auto potion usage on a per client basis.
-		await asyncio.gather(*[logging_loop(p) for p in walker.clients])
+	async def drop_logging_loop(toSearch=[]):
+		# Run default drop logger
+		await asyncio.gather(*[logging_loop(p, toSearch) for p in walker.clients])
 
 
 	async def zone_check_loop():
@@ -1815,6 +1784,7 @@ async def main():
 	print('https://discord.gg/59UrPJwYDm')
 	print('Be sure to join the WizWalker discord, as this project is built using it. Join here:')
 	print('https://discord.gg/JHrdCNK')
+	print('欢迎来到‘原神’，愿你能在提瓦特找到自己的乐趣o(*￣▽￣*)ブ By.我是马猪我是魔法装饰师')
 	print('\n')
 	logger.debug(f'Welcome to {tool_name} version {tool_version}!')
 
@@ -1838,9 +1808,7 @@ async def main():
 			winreg.SetValueEx(rkey, "badboy", 0, winreg.REG_DWORD, 1)
 		except:
 			pass
-		cMessageBox(None, "Deimos has encountered a fatal error (Code 0C24). Please contact slackaduts on discord for more info.", "Deimos error", 0x10 | 0x1000)
-		quit(0)
-
+		
 
 	async def hooking_logic(default_logic : bool = False):
 		await asyncio.sleep(0.1)
@@ -1969,7 +1937,6 @@ async def main():
 			gui_task,
 			potion_usage_loop_task,
 			rpc_loop_task,
-			drop_logging_loop_task,
 			zone_check_loop_task,
 			anti_afk_questing_loop_task
 			], return_when=asyncio.FIRST_EXCEPTION)
@@ -1981,7 +1948,7 @@ async def main():
 				raise exc
 
 	finally:
-		tasks: List[asyncio.Task] = [ban_watcher_task, foreground_client_switching_task, combat_task, assign_foreground_clients_task, dialogue_task, anti_afk_loop_task, sigil_task, questing_task, in_combat_loop_task, questing_leader_combat_detection_task, gui_task, potion_usage_loop_task, rpc_loop_task, drop_logging_loop_task, zone_check_loop_task, anti_afk_questing_loop_task]
+		tasks: List[asyncio.Task] = [ban_watcher_task, foreground_client_switching_task, combat_task, assign_foreground_clients_task, dialogue_task, anti_afk_loop_task, sigil_task, questing_task, in_combat_loop_task, questing_leader_combat_detection_task, gui_task, potion_usage_loop_task, rpc_loop_task, zone_check_loop_task, anti_afk_questing_loop_task]
 		for task in tasks:
 			if task is not None and not task.cancelled():
 				task.cancel()
@@ -2000,11 +1967,6 @@ def bool_to_string(input: bool):
 def handle_tool_updating():
 	version = get_latest_version()
 	update_server = None
-
-	try:
-		update_server = read_webpage(f"https://raw.githubusercontent.com/{tool_author}/{repo_name}/{branch}/LatestVersion.txt")
-	except:
-		time.sleep(0.1)
 
 	if update_server is not None and update_server[1].lower() == 'false':
 		raise KeyboardInterrupt
